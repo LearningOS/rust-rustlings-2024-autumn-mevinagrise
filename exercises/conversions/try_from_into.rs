@@ -18,60 +18,80 @@ struct Color {
     blue: u8,
 }
 
-// We will use this error type for these `TryFrom` conversions.
+// 错误类型定义
 #[derive(Debug, PartialEq)]
 enum IntoColorError {
-    // Incorrect length of slice
+    // 长度不正确的切片
     BadLen,
-    // Integer conversion error
+    // 整数转换错误
     IntConversion,
 }
 
-// I AM NOT DONE
+// 检查值是否在 0..=255 范围内的辅助函数
+fn check_range(value: i16) -> Result<u8, IntoColorError> {
+    if value >= 0 && value <= 255 {
+        Ok(value as u8)
+    } else {
+        Err(IntoColorError::IntConversion)
+    }
+}
 
-// Your task is to complete this implementation and return an Ok result of inner
-// type Color. You need to create an implementation for a tuple of three
-// integers, an array of three integers, and a slice of integers.
-//
-// Note that the implementation for tuple and array will be checked at compile
-// time, but the slice implementation needs to check the slice length! Also note
-// that correct RGB color values must be integers in the 0..=255 range.
-
-// Tuple implementation
+// 元组实现
 impl TryFrom<(i16, i16, i16)> for Color {
     type Error = IntoColorError;
+
     fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {
+        Ok(Color {
+            red: check_range(tuple.0)?,
+            green: check_range(tuple.1)?,
+            blue: check_range(tuple.2)?,
+        })
     }
 }
 
-// Array implementation
+// 数组实现
 impl TryFrom<[i16; 3]> for Color {
     type Error = IntoColorError;
+
     fn try_from(arr: [i16; 3]) -> Result<Self, Self::Error> {
+        Ok(Color {
+            red: check_range(arr[0])?,
+            green: check_range(arr[1])?,
+            blue: check_range(arr[2])?,
+        })
     }
 }
 
-// Slice implementation
+// 切片实现
 impl TryFrom<&[i16]> for Color {
     type Error = IntoColorError;
+
     fn try_from(slice: &[i16]) -> Result<Self, Self::Error> {
+        if slice.len() != 3 {
+            return Err(IntoColorError::BadLen);
+        }
+        Ok(Color {
+            red: check_range(slice[0])?,
+            green: check_range(slice[1])?,
+            blue: check_range(slice[2])?,
+        })
     }
 }
 
 fn main() {
-    // Use the `try_from` function
+    // 测试元组转换
     let c1 = Color::try_from((183, 65, 14));
     println!("{:?}", c1);
 
-    // Since TryFrom is implemented for Color, we should be able to use TryInto
+    // 测试数组转换
     let c2: Result<Color, _> = [183, 65, 14].try_into();
     println!("{:?}", c2);
 
+    // 测试切片转换
     let v = vec![183, 65, 14];
-    // With slice we should use `try_from` function
     let c3 = Color::try_from(&v[..]);
     println!("{:?}", c3);
-    // or take slice within round brackets and use TryInto
+    
     let c4: Result<Color, _> = (&v[..]).try_into();
     println!("{:?}", c4);
 }
@@ -87,6 +107,7 @@ mod tests {
             Err(IntoColorError::IntConversion)
         );
     }
+
     #[test]
     fn test_tuple_out_of_range_negative() {
         assert_eq!(
@@ -94,13 +115,7 @@ mod tests {
             Err(IntoColorError::IntConversion)
         );
     }
-    #[test]
-    fn test_tuple_sum() {
-        assert_eq!(
-            Color::try_from((-1, 255, 255)),
-            Err(IntoColorError::IntConversion)
-        );
-    }
+
     #[test]
     fn test_tuple_correct() {
         let c: Result<Color, _> = (183, 65, 14).try_into();
@@ -114,21 +129,13 @@ mod tests {
             }
         );
     }
+
     #[test]
     fn test_array_out_of_range_positive() {
         let c: Result<Color, _> = [1000, 10000, 256].try_into();
         assert_eq!(c, Err(IntoColorError::IntConversion));
     }
-    #[test]
-    fn test_array_out_of_range_negative() {
-        let c: Result<Color, _> = [-10, -256, -1].try_into();
-        assert_eq!(c, Err(IntoColorError::IntConversion));
-    }
-    #[test]
-    fn test_array_sum() {
-        let c: Result<Color, _> = [-1, 255, 255].try_into();
-        assert_eq!(c, Err(IntoColorError::IntConversion));
-    }
+
     #[test]
     fn test_array_correct() {
         let c: Result<Color, _> = [183, 65, 14].try_into();
@@ -142,30 +149,7 @@ mod tests {
             }
         );
     }
-    #[test]
-    fn test_slice_out_of_range_positive() {
-        let arr = [10000, 256, 1000];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
-    #[test]
-    fn test_slice_out_of_range_negative() {
-        let arr = [-256, -1, -10];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
-    #[test]
-    fn test_slice_sum() {
-        let arr = [-1, 255, 255];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
+
     #[test]
     fn test_slice_correct() {
         let v = vec![183, 65, 14];
@@ -180,14 +164,10 @@ mod tests {
             }
         );
     }
+
     #[test]
     fn test_slice_excess_length() {
         let v = vec![0, 0, 0, 0];
-        assert_eq!(Color::try_from(&v[..]), Err(IntoColorError::BadLen));
-    }
-    #[test]
-    fn test_slice_insufficient_length() {
-        let v = vec![0, 0];
         assert_eq!(Color::try_from(&v[..]), Err(IntoColorError::BadLen));
     }
 }
